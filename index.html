@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Deployer</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Dynamic Neo-Brutalist Frame Container -->
+  <div id="brutalist-container">
+
+    <!-- Top Left Global Repository Finder -->
+    <button id="btn-list-toggle" class="brutalist-btn" style="position: absolute; top: 12px; left: 12px; width: 38px; height: 38px; display: none; padding: 0; background-color: #00FF66;">
+      <i data-lucide="list" style="width: 18px; height: 18px; stroke-width: 3;"></i>
+    </button>
+
+    <!-- Page 1: Stark Access Token Prompt Bar -->
+    <div id="view-1" class="brutalist-view">
+      <div class="m3-prompt-bar">
+        <input id="pat-input" type="password" placeholder="PAT" autocomplete="off" spellcheck="false" />
+        <button id="pat-submit">
+          <i data-lucide="arrow-right" style="stroke-width: 3;"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Page 2: Select File Config Box -->
+    <div id="view-2" class="brutalist-view">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 24px; width: 100%;">
+        
+        <!-- Center Plus Button -->
+        <button id="btn-plus" class="brutalist-btn" style="width: 80px; height: 80px; background-color: #FF55BB;">
+          <i data-lucide="plus" style="width: 38px; height: 38px; stroke-width: 4;"></i>
+        </button>
+        <input type="file" id="file-input" accept=".html" style="display: none;" />
+
+        <!-- Repository Namespace Configuration -->
+        <div class="m3-prompt-bar" style="max-width: 240px; box-shadow: 4px 4px 0px #000000;">
+          <input id="repo-input" type="text" placeholder="NAME (OR BLANK)" autocomplete="off" spellcheck="false" style="text-align: center; text-transform: lowercase; font-size: 13px;" />
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Loading Screen: Stark Circular Loader Only -->
+    <div id="view-loading" class="brutalist-view">
+      <div class="brutalist-circle-loader"></div>
+    </div>
+
+    <!-- Page 3: Deploy Validation & URL State -->
+    <div id="view-3" class="brutalist-view" style="width: 100%;">
+      
+      <!-- Polling "wait a minute..." Status Screen -->
+      <div id="wait-container" style="display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%;">
+        <div class="brutalist-circle-loader" style="width: 40px; height: 40px; border-width: 6px; border-top-color: #00E5FF; margin-bottom: 8px;"></div>
+        <div style="font-size: 14px; font-weight: 900; text-transform: uppercase; background-color: #FF55BB; border: 3px solid #000000; box-shadow: 4px 4px 0px #000000; padding: 12px; width: 100%; text-align: center; letter-spacing: 0.5px;">
+          wait a minute...
+        </div>
+      </div>
+
+      <!-- Live Activation Actions (Unlocked when deployment registers built state) -->
+      <div id="live-container" style="display: none; flex-direction: column; gap: 16px; width: 100%;">
+        <a id="link-external" href="#" target="_blank" class="brutalist-btn" style="background-color: #00E5FF; text-decoration: none; text-align: center; font-size: 14px; font-weight: 900; letter-spacing: 0.5px;">
+          <i data-lucide="external-link" style="width: 18px; height: 18px; stroke-width: 3; margin-right: 8px;"></i>
+          OPEN LIVE SITE
+        </a>
+        <div style="display: flex; gap: 12px; width: 100%;">
+          <button id="btn-copy" class="brutalist-btn" style="flex: 1; background-color: #FFFFFF;">
+            <i data-lucide="copy" style="width: 18px; height: 18px; stroke-width: 3;"></i>
+          </button>
+          <button id="btn-back" class="brutalist-btn" style="flex: 1; background-color: #FFFFFF;">
+            <i data-lucide="refresh-cw" style="width: 18px; height: 18px; stroke-width: 3;"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Page 4: User Pages Library Listings (Toggled on list click) -->
+    <div id="view-list" class="brutalist-view" style="width: 100%;">
+      <div id="list-content" style="max-height: 200px; overflow-y: auto; width: 100%; display: flex; flex-direction: column; padding-right: 4px;">
+        <!-- Hydrated dynamically -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Injected style system to avoid external files (HTML + JS only execution)
+    const styleBlock = document.createElement("style");
+    styleBlock.innerHTML = `
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body, html {
+        background-color: #FFF314; /* Neo-Brutalist Electric Yellow */
+        color: #000000;
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: 900;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+      }
+      #brutalist-container {
+        background-color: #FFFFFF;
+        border: 4px solid #000000;
+        box-shadow: 8px 8px 0px #000000;
+        padding: 64px 24px 24px 24px;
+        width: 100%;
+        max-width: 320px;
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s;
+      }
+      .brutalist-view {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
+      .brutalist-view.active {
+        display: flex;
+      }
+      
+      /* Merged Brutalist Prompt Box Layout */
+      .m3-prompt-bar {
+        display: flex;
+        width: 100%;
+        border: 3px solid #000000;
+        box-shadow: 4px 4px 0px #000000;
+        background: #FFFFFF;
+        transition: transform 0.05s, box-shadow 0.05s;
+      }
+      .m3-prompt-bar:focus-within {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0px #000000;
+      }
+      .m3-prompt-bar input {
+        flex: 1;
+        border: none;
+        padding: 14px;
+        outline: none;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        font-weight: 900;
+        background: transparent;
+        color: #000000;
+        width: 50%;
+      }
+      .m3-prompt-bar button {
+        border-left: 3px solid #000000;
+        border-top: none;
+        border-bottom: none;
+        border-right: none;
+        background: #00FF66; /* Neon Green */
+        padding: 0 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        outline: none;
+      }
+      .m3-prompt-bar button:active {
+        background: #00cc52;
+      }
+
+      /* Brutalist Buttons with Tactile Depression */
+      .brutalist-btn {
+        color: #000000;
+        border: 3px solid #000000;
+        box-shadow: 4px 4px 0px #000000;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 16px;
+        font-weight: 900;
+        padding: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.05s, box-shadow 0.05s;
+        outline: none;
+      }
+      .brutalist-btn:active {
+        transform: translate(4px, 4px);
+        box-shadow: 0px 0px 0px #000000;
+      }
+
+      /* Dynamic Heavy Ring Loader */
+      .brutalist-circle-loader {
+        width: 54px;
+        height: 54px;
+        border: 8px solid #000000;
+        border-top: 8px solid #FFF314;
+        border-radius: 50%;
+        animation: brut-spin 0.6s linear infinite;
+      }
+      @keyframes brut-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Error/Shake Alert Rules */
+      .shake {
+        animation: brut-shake 0.35s cubic-bezier(.36,.07,.19,.97) both;
+      }
+      @keyframes brut-shake {
+        10%, 90% { transform: translate3d(-2px, 0, 0); }
+        20%, 80% { transform: translate3d(4px, 0, 0); }
+        30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+        40%, 60% { transform: translate3d(6px, 0, 0); }
+      }
+
+      /* Directory Scrollbar styling */
+      #list-content::-webkit-scrollbar {
+        width: 8px;
+      }
+      #list-content::-webkit-scrollbar-track {
+        background: #FFFFFF;
+        border-left: 2px solid #000000;
+      }
+      #list-content::-webkit-scrollbar-thumb {
+        background: #000000;
+      }
+    `;
+    document.head.appendChild(styleBlock);
+  </script>
+
+  <script>
+    let currentUrl = "";
+    let selectedFileContent = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const patInput = document.getElementById("pat-input");
+      const patSubmit = document.getElementById("pat-submit");
+      const btnPlus = document.getElementById("btn-plus");
+      const fileInput = document.getElementById("file-input");
+      const repoInput = document.getElementById("repo-input");
+      const btnCopy = document.getElementById("btn-copy");
+      const btnBack = document.getElementById("btn-back");
+      const btnListToggle = document.getElementById("btn-list-toggle");
+
+      const view1 = document.getElementById("view-1");
+      const view2 = document.getElementById("view-2");
+      const view3 = document.getElementById("view-3");
+      const viewLoading = document.getElementById("view-loading");
+      const viewList = document.getElementById("view-list");
+
+      const container = document.getElementById("brutalist-container");
+      const listContent = document.getElementById("list-content");
+
+      initApp();
+
+      async function initApp() {
+        const token = localStorage.getItem("gh_pat");
+        const cache = localStorage.getItem("gh_user");
+
+        updateToggleVisibility();
+
+        if (token) {
+          showView(2);
+          if (!cache) {
+            fetchUserSilent(token);
+          }
+        } else {
+          showView(1);
+        }
+        lucide.createIcons();
+      }
+
+      function showView(step) {
+        view1.classList.remove("active");
+        view2.classList.remove("active");
+        view3.classList.remove("active");
+        viewLoading.classList.remove("active");
+        viewList.classList.remove("active");
+
+        if (step === 1) {
+          view1.classList.add("active");
+        } else if (step === 2) {
+          view2.classList.add("active");
+        } else if (step === 3) {
+          view3.classList.add("active");
+        } else if (step === "loading") {
+          viewLoading.classList.add("active");
+        } else if (step === "list") {
+          viewList.classList.add("active");
+        }
+        updateToggleVisibility();
+      }
+
+      function updateToggleVisibility() {
+        const token = localStorage.getItem("gh_pat");
+        if (token) {
+          btnListToggle.style.display = "flex";
+        } else {
+          btnListToggle.style.display = "none";
+        }
+      }
+
+      async function fetchUserSilent(token) {
+        try {
+          const { data } = await githubRequest("/user", token);
+          localStorage.setItem("gh_user", JSON.stringify({ username: data.login }));
+        } catch (err) {
+          localStorage.removeItem("gh_pat");
+          localStorage.removeItem("gh_user");
+          initApp();
+        }
+      }
+
+      // Restrict characters in Name field dynamically to ensure API compatibility
+      repoInput.addEventListener("input", () => {
+        repoInput.value = repoInput.value.toLowerCase().replace(/[^a-z0-9-.]/g, '');
+      });
+
+      // Submit token verification
+      patSubmit.addEventListener("click", async () => {
+        const token = patInput.value.trim();
+        if (!token) {
+          triggerHapticShake();
+          return;
+        }
+
+        patSubmit.disabled = true;
+        
+        try {
+          const { data } = await githubRequest("/user", token);
+          localStorage.setItem("gh_pat", token);
+          localStorage.setItem("gh_user", JSON.stringify({ username: data.login }));
+          initApp();
+        } catch (err) {
+          triggerHapticShake();
+        } finally {
+          patSubmit.disabled = false;
+        }
+      });
+
+      // Handle raw enter key presses
+      patInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          patSubmit.click();
+        }
+      });
+
+      // List Directory Toggle Action
+      btnListToggle.addEventListener("click", () => {
+        if (viewList.classList.contains("active")) {
+          showView(localStorage.getItem("gh_pat") ? 2 : 1);
+          btnListToggle.innerHTML = `<i data-lucide="list" style="width: 18px; height: 18px; stroke-width: 3;"></i>`;
+        } else {
+          fetchPagesRepos();
+          btnListToggle.innerHTML = `<i data-lucide="arrow-left" style="width: 18px; height: 18px; stroke-width: 3;"></i>`;
+        }
+        lucide.createIcons();
+      });
+
+      // Pull Active Pages Repositories
+      async function fetchPagesRepos() {
+        const token = localStorage.getItem("gh_pat");
+        if (!token) return;
+
+        listContent.innerHTML = `<div class="brutalist-circle-loader" style="width: 32px; height: 32px; border-width: 4px; border-top-width: 4px; margin: 24px auto;"></div>`;
+        showView("list");
+
+        try {
+          const { data } = await githubRequest("/user/repos?per_page=100&type=owner", token);
+          const pagesRepos = data.filter(repo => repo.has_pages);
+
+          if (pagesRepos.length === 0) {
+            listContent.innerHTML = `<div style="text-align: center; font-size: 13px; font-weight: bold; padding: 16px;">NO REPOS DEPLOYED</div>`;
+            return;
+          }
+
+          listContent.innerHTML = pagesRepos.map(repo => {
+            const url = `https://${repo.owner.login}.github.io/${repo.name}/`;
+            return `
+              <a href="${url}" target="_blank" class="brutalist-btn" style="background-color: #00E5FF; text-decoration: none; text-align: center; font-size: 13px; font-weight: 900; word-break: break-all; margin-bottom: 8px; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 0;">
+                <span>${repo.name}</span>
+                <i data-lucide="external-link" style="width: 14px; height: 14px; stroke-width: 3;"></i>
+              </a>
+            `;
+          }).join("");
+          lucide.createIcons();
+        } catch (err) {
+          listContent.innerHTML = `<div style="text-align: center; color: #FF5555; font-size: 13px; font-weight: bold; padding: 16px;">FETCH FAILURE</div>`;
+        }
+      }
+
+      btnPlus.addEventListener("click", () => fileInput.click());
+      
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          parseFile(e.target.files[0]);
+        }
+      });
+
+      function parseFile(file) {
+        if (!file.name.endsWith(".html")) {
+          triggerHapticShake();
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          selectedFileContent = btoa(unescape(encodeURIComponent(e.target.result)));
+          deploy();
+        };
+        reader.onerror = () => {
+          triggerHapticShake();
+        };
+        reader.readAsText(file);
+      }
+
+      // Parallel Upload Execution Pipeline
+      async function deploy() {
+        const token = localStorage.getItem("gh_pat");
+        const cache = JSON.parse(localStorage.getItem("gh_user") || "{}");
+        const username = cache.username;
+
+        if (!token || !username) {
+          initApp();
+          return;
+        }
+
+        showView("loading");
+
+        let repoName = repoInput.value.trim();
+        if (!repoName) {
+          const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+          repoName = Array.from({length: 5}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+        }
+
+        try {
+          const [repoRes, fileRes, pagesRes] = await Promise.allSettled([
+            githubRequest(`/repos/${username}/${repoName}`, token),
+            githubRequest(`/repos/${username}/${repoName}/contents/index.html`, token),
+            githubRequest(`/repos/${username}/${repoName}/pages`, token)
+          ]);
+
+          let defaultBranch = "main";
+          let repoExists = false;
+          let fileSha = null;
+          let pagesSetupNeeded = true;
+
+          if (repoRes.status === "fulfilled") {
+            repoExists = true;
+            defaultBranch = repoRes.value.data.default_branch || "main";
+          } else if (repoRes.reason.status !== 404) {
+            throw new Error();
+          }
+
+          if (fileRes.status === "fulfilled") {
+            fileSha = fileRes.value.data.sha;
+          }
+
+          if (pagesRes.status === "fulfilled") {
+            pagesSetupNeeded = false;
+          }
+
+          // Generate Sandbox Repository
+          if (!repoExists) {
+            const creation = await githubRequest("/user/repos", token, {
+              method: "POST",
+              body: JSON.stringify({
+                name: repoName,
+                private: false,
+                auto_init: true,
+                description: "sandbox host space"
+              })
+            });
+            defaultBranch = creation.data.default_branch || "main";
+            await new Promise(r => setTimeout(r, 2000));
+          }
+
+          // Write Bundle
+          await githubRequest(`/repos/${username}/${repoName}/contents/index.html`, token, {
+            method: "PUT",
+            body: JSON.stringify({
+              message: "deploy index.html",
+              content: selectedFileContent,
+              sha: fileSha,
+              branch: defaultBranch
+            })
+          });
+
+          // Deploy Sandbox Configuration
+          if (pagesSetupNeeded) {
+            try {
+              await githubRequest(`/repos/${username}/${repoName}/pages`, token, {
+                method: "POST",
+                body: JSON.stringify({
+                  source: {
+                    branch: defaultBranch,
+                    path: "/"
+                  }
+                })
+              });
+            } catch (err) {
+              console.warn("Pages creation skip action");
+            }
+          }
+
+          currentUrl = `https://${username}.github.io/${repoName}/`;
+          document.getElementById("link-external").href = currentUrl;
+
+          // Transition to verification stage (displays wait a minute...)
+          showView(3);
+          document.getElementById("wait-container").style.display = "flex";
+          document.getElementById("live-container").style.display = "none";
+
+          const live = await pollPagesStatus(username, repoName, token);
+
+          document.getElementById("wait-container").style.display = "none";
+          document.getElementById("live-container").style.display = "flex";
+          lucide.createIcons();
+
+        } catch (err) {
+          triggerHapticShake();
+          showView(2);
+        }
+      }
+
+      // Verifies active page generation in real time (up to 90 seconds limit)
+      async function pollPagesStatus(username, repoName, token) {
+        const maxAttempts = 30;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const res = await githubRequest(`/repos/${username}/${repoName}/pages`, token);
+            if (res.data && res.data.status === "built") {
+              return true;
+            }
+          } catch (e) {
+            // Keep polling while setup compiles
+          }
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        return false;
+      }
+
+      async function githubRequest(endpoint, token, options = {}) {
+        const headers = {
+          "Authorization": `token ${token}`,
+          "Accept": "application/vnd.github+json",
+          ...options.headers
+        };
+        const response = await fetch(`https://api.github.com${endpoint}`, {
+          ...options,
+          headers
+        });
+        
+        if (!response.ok) {
+          const err = new Error(`HTTP ${response.status}`);
+          err.status = response.status;
+          throw err;
+        }
+        if (response.status === 204) return { headers: response.headers, data: null };
+        const data = await response.json();
+        return { headers: response.headers, data };
+      }
+
+      function triggerHapticShake() {
+        container.classList.add("shake");
+        container.style.backgroundColor = "#FF5555";
+        setTimeout(() => {
+          container.classList.remove("shake");
+          container.style.backgroundColor = "#FFFFFF";
+        }, 350);
+      }
+
+      btnCopy.addEventListener("click", () => {
+        navigator.clipboard.writeText(currentUrl).then(() => {
+          btnCopy.innerHTML = `<i data-lucide="check" style="width: 18px; height: 18px; stroke-width: 3;"></i>`;
+          lucide.createIcons();
+          setTimeout(() => {
+            btnCopy.innerHTML = `<i data-lucide="copy" style="width: 18px; height: 18px; stroke-width: 3;"></i>`;
+            lucide.createIcons();
+          }, 1200);
+        });
+      });
+
+      btnBack.addEventListener("click", () => {
+        selectedFileContent = null;
+        fileInput.value = "";
+        repoInput.value = "";
+        showView(2);
+        btnListToggle.innerHTML = `<i data-lucide="list" style="width: 18px; height: 18px; stroke-width: 3;"></i>`;
+        lucide.createIcons();
+      });
+    });
+  </script>
+</body>
+</html>
